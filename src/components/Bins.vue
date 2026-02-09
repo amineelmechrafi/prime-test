@@ -1,6 +1,10 @@
 <template>
     <div class="card">
-        <DataTable :value="bins" v-model:filters="filters" :globalFilterFields="['bank', 'country', 'cardType']" paginator :rows="4" :rowsPerPageOptions="[5, 10, 20, 50]" tableStyle="min-width: 70rem">
+        <DataTable lazy :totalRecords="totalRecords" @page="onPage" :value="bins" v-model:filters="filters" 
+        :globalFilterFields="['bank', 'country', 'cardType']" 
+        paginator :rows="5" :rowsPerPageOptions="[5, 10, 20, 50]" tableStyle="min-width: 70rem"
+        paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+        currentPageReportTemplate="{first} to {last} of {totalRecords}">
           
             <template #header>
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -15,7 +19,7 @@
                     </IconField>
                 </div>
             </template>
-
+            <Column field="id" header="id" />
             <Column field="issuerBin" header="Issuer BIN" />
             <Column field="binLength" header="BIN Length" />
 
@@ -62,15 +66,13 @@
                 </template>
             </Column>
 
-            <template #footer>
-                In total there are {{ bins ? bins.length : 0 }} BIN records.
-            </template>
+            
         </DataTable>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { BinService } from '@/services/BinService';
 import { BinService2 } from '@/services/BinService2';
 import { FilterMatchMode } from '@primevue/core/api';
@@ -81,18 +83,40 @@ import InputIcon from 'primevue/inputicon';
 
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 
 const bins = ref([]);
+
+const lazyParams = ref({
+  start: 0,
+  limit: 5,
+  sortField: null,
+  sortOrder: null,
+  filters: {}
+})
+
+const onPage = (event) => {
+  lazyParams.value.start = event.page * event.rows
+  lazyParams.value.limit = event.rows
+  loadBins()
+}
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
+const totalRecords = ref(0)
+
 const loadBins = async () => {
-    bins.value = await BinService2.getBins();
-};
+  const result = await BinService2.getBins(
+    lazyParams.value.start,
+    lazyParams.value.limit
+  )
+
+  bins.value = result.data
+  totalRecords.value = result.total
+}
+
 
 onMounted(async () => {
     await loadBins();
